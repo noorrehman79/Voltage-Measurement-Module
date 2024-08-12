@@ -1,0 +1,170 @@
+#include <avr/io.h>
+#include <util/delay.h>
+#include <stdlib.h>
+#include <math.h>
+
+void usart_init(void)
+{
+    UBRR0 = 0x67;                         // set pre-scalar to configure baud rate (9600)
+    UCSR0A &= ~(1 << U2X0);               // Single Speed U2X - 0 (can be set to 1)
+    UCSR0B = (1 << RXEN0) | (1 << TXEN0); // enable transmitter and receiver
+                                          // Async mode, parity mode = disabled, 1 stop bit, character size = 8 bit clock polarity = 0 for async communication
+    UCSR0C = (0 << USBS0) | (1 << UCSZ01) | (1 << UCSZ00);
+}
+
+void usart_putChar(unsigned char data)
+{
+    while (!(UCSR0A & (1 << UDRE0)))
+    {
+    }; // wait for data register to be empty
+    UDR0 = data; // write data
+    while (!(UCSR0A & (1 << TXC0)))
+    {
+    }; // wait for complete frame transmission
+}
+
+char usart_getChar()
+{
+    char data;
+    while (!(UCSR0A & (1 << RXC0)))
+    {
+    }; // wait for data to receive
+    data = UDR0;
+    return data;
+}
+
+void usart_putString(char *StringPtr)
+{
+    while (*StringPtr != 0x00)
+    {
+        usart_putChar((unsigned char)*StringPtr);
+        StringPtr++;
+    }
+}
+
+int findMaxLocation(float arr[], int size)
+{
+    int maxIndex = 0;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (arr[i] > arr[maxIndex])
+        {
+            maxIndex = i;
+        }
+    }
+    return maxIndex;
+}
+
+int findMinLocation(float arr[], int size)
+{
+    int minIndex = 0;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (arr[i] < arr[minIndex])
+        {
+            minIndex = i;
+        }
+    }
+    return minIndex;
+}
+
+int findMax(int num1, int num2)
+{
+    if (num1 > num2)
+    {
+        return num1;
+    }
+    else
+    {
+        return num2;
+    }
+}
+
+int findMin(int num1, int num2)
+{
+    if (num1 < num2)
+    {
+        return num1;
+    }
+    else
+    {
+        return num2;
+    }
+}
+
+int main()
+{
+    DDRC = 0x00; // for adc
+    ADCSRA = 0x87; // Division Factor - 128
+    ADMUX = 0x40;  // Reference Voltage - AVCC, ADLAR - 1 (Left Aligned Result), Using A0 Pin of Arduino
+    usart_init();
+    float sensor_output[250];
+    char buffer[sizeof(float) * 8 + 1];
+    int i = 0; // iterable variable
+    int min_location = 0;
+    int max_location = 0;
+    int maximum_number = 0;
+    int minimum_number = 0;
+    int sampleCount = 0;
+    int startingPosition = 0;
+    float averageValue = 0;
+    float rmsValue = 0;
+    float sum_of_squares = 0;
+    float mean_of_squares = 0;
+    unsigned int adcval;
+
+    for (i = 0; i < 250; i++)
+    {
+        ADCSRA |= (1 << ADSC);
+        while (ADCSRA & (1 << ADIF) == 0)
+            ;
+        adcval = ADC;
+        sensor_output[i] = adcval * (5.0 / 1023.0);
+        _delay_us(100);
+    }
+
+    min_location = findMinLocation(sensor_output, 250);
+    max_location = findMaxLocation(sensor_output, 250);
+
+    maximum_number = findMax(min_location, max_location);
+    minimum_number = findMin(min_location, max_location);
+
+    startingPosition = minimum_number;
+
+    sampleCount = (maximum_number - minimum_number) * 2;
+
+    for (i = startingPosition; i < sampleCount + startingPosition; i++)
+    {
+        averageValue += sensor_output[i];
+    }
+
+    averageValue = averageValue / sampleCount;
+
+    for (i = startingPosition; i < sampleCount + startingPosition; i++)
+    {
+        sensor_output[i] -= averageValue;
+    }
+
+    for (i = startingPosition; i < sampleCount + startingPosition; i++)
+    {
+        sum_of_squares += sensor_output[i] * sensor_output[i];
+    }
+
+    mean_of_squares = sum_of_squares / sampleCount;
+
+    rmsValue = sqrt(mean_of_squares);
+
+    _delay_ms(1000);
+    usart_init();
+
+    usart_putString("\nAverage Value: ");
+    dtostrf(averageValue, 5, 3, buffer);
+
+    usart_putString(buffer);
+
+    usart_putString("\nRMS Value: ");
+    dtostrf(rmsValue, 5, 3, buffer);
+    usart_putString(buffer);
+}
