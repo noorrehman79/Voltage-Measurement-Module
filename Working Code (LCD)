@@ -1,0 +1,200 @@
+#include <avr/io.h>
+#include <util/delay.h>
+#include <stdlib.h>
+#include <math.h>
+
+#define LCD_DPRT PORTD // LCD DATA PORT
+#define LCD_DDDR DDRD  // LCD DATA DDR
+#define LCD_DPIN PIND  // LCD DATA PIN
+#define LCD_CPRT PORTB // PORT for LCD Control Pins
+#define LCD_CDDR DDRB  // DDR for LCD Control Pins
+#define LCD_CPIN PINB  // PIN Reg for LCD Control Pins
+#define LCD_RS 0       // LCD RS (RS is connected at PB0)
+#define LCD_EN 1       // LCD EN (EN is connected at PB1)
+
+void lcd_init()
+{
+    LCD_DDDR = 0xFF; // making data port (output)
+    LCD_CDDR |= (1 << LCD_RS) | (1 << LCD_EN);
+    // making control pins output pins
+    LCD_CPRT &= ~(1 << LCD_EN); // LCD_EN = 0
+    _delay_ms(20);              // wait for init.
+    lcdCommand(0x38);           // init. LCD 2-line, 8-bit mode
+    lcdCommand(0x0F);           // display on blinking
+    lcdCommand(0x01);           // clear LCD
+    _delay_us(2000);            // wait
+    lcdCommand(0x06);           // shift cursor right
+}
+
+void lcd_print(char *str)
+{
+    unsigned char i = 0;
+    while (str[i] != 0)
+    {
+        lcdData(str[i]);
+        i++;
+        _delay_ms(100); // for typing effect
+    }
+}
+
+void lcdCommand(unsigned char cmnd)
+{
+    LCD_DPRT = cmnd;            // send cmnd to data port
+    LCD_CPRT &= ~(1 << LCD_RS); // RS = 0 for command
+    LCD_CPRT |= (1 << LCD_EN);  // EN = 1 for H-to-L pulse
+    _delay_us(1);               // wait to make enable wide
+    LCD_CPRT &= ~(1 << LCD_EN); // EN = 0 for H-to-L pulse
+    _delay_us(100);             // wait to make enable wide
+}
+
+void lcdData(unsigned char data)
+{
+    LCD_DPRT = data;           // send data to data port
+    LCD_CPRT |= (1 << LCD_RS); // RS = 1 for data
+    LCD_CPRT |= (1 << LCD_EN); // EN = 1 for H-to-L pulse
+    _delay_us(1);              // wait to make enable wide
+    LCD_CPRT &= ~(1 << LCD_EN);
+    // EN = 0 for H-to-L pulse
+    _delay_us(100); // wait to make enable wide
+}
+
+int findMaxLocation(float arr[], int size)
+{
+    int maxIndex = 0;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (arr[i] > arr[maxIndex])
+        {
+            maxIndex = i;
+        }
+    }
+    return maxIndex;
+}
+
+int findMinLocation(float arr[], int size)
+{
+    int minIndex = 0;
+
+    for (int i = 0; i < size; i++)
+    {
+        if (arr[i] < arr[minIndex])
+        {
+            minIndex = i;
+        }
+    }
+    return minIndex;
+}
+
+int findMax(int num1, int num2)
+{
+    if (num1 > num2)
+    {
+        return num1;
+    }
+    else
+    {
+        return num2;
+    }
+}
+
+int findMin(int num1, int num2)
+{
+    if (num1 < num2)
+    {
+        return num1;
+    }
+    else
+    {
+        return num2;
+    }
+}
+
+int main()
+{
+    DDRD = 0xFF;   // for lcd's data bits
+    DDRC = 0x00;   // for adc
+    ADCSRA = 0x87; // Division Factor - 128
+    ADMUX = 0x40;  // Reference Voltage - AVCC, ADLAR - 1 (Left Aligned Result), Using A0 Pin of Arduino
+    usart_init();
+    float sensor_output[250];
+    char buffer[sizeof(float) * 8 + 1];
+    int i = 0; // iterable variable
+    int min_location = 0;
+    int max_location = 0;
+    int maximum_number = 0;
+    int minimum_number = 0;
+    int sampleCount = 0;
+    int startingPosition = 0;
+    float averageValue = 0;
+    float rmsValue = 0;
+    float sum_of_squares = 0;
+    float mean_of_squares = 0;
+    unsigned int adcval;
+
+    for (i = 0; i < 250; i++)
+    {
+        ADCSRA |= (1 << ADSC);
+        while (ADCSRA & (1 << ADIF) == 0)
+            ;
+        adcval = ADC;
+        sensor_output[i] = adcval * (5.0 / 1023.0);
+        _delay_us(100);
+    }
+
+    min_location = findMinLocation(sensor_output, 250);
+    max_location = findMaxLocation(sensor_output, 250);
+
+    maximum_number = findMax(min_location, max_location);
+    minimum_number = findMin(min_location, max_location);
+
+    startingPosition = minimum_number;
+
+    sampleCount = (maximum_number - minimum_number) * 2;
+
+    for (i = startingPosition; i < sampleCount + startingPosition; i++)
+    {
+        averageValue += sensor_output[i];
+    }
+
+    averageValue = averageValue / sampleCount;
+
+    for (i = startingPosition; i < sampleCount + startingPosition; i++)
+    {
+        sensor_output[i] -= averageValue;
+    }
+
+    for (i = startingPosition; i < sampleCount + startingPosition; i++)
+    {
+        sum_of_squares += sensor_output[i] * sensor_output[i];
+    }
+
+    mean_of_squares = sum_of_squares / sampleCount;
+
+    rmsValue = sqrt(mean_of_squares);
+
+    lcd_init();
+    while (1)
+    {
+        _delay_ms(1000);
+        dtostrf(averageValue, 10, 3, buffer);
+        lcd_print("Average Value: ");
+        lcdCommand(0xC0);
+        lcd_print(buffer);
+
+        _delay_ms(1000);
+        lcdCommand(0x01); // clear display screen
+        lcdCommand(0x80); // cursor on start of first line
+        _delay_ms(1000);
+
+        dtostrf(rmsValue, 10, 3, buffer);
+        lcd_print("RMS Value: ");
+        lcdCommand(0xC0);
+        lcd_print(buffer);
+
+        _delay_ms(1000);
+        lcdCommand(0x01); // clear display screen
+        lcdCommand(0x80); // cursor on start of first line
+        _delay_ms(1000);
+    }
+}
