@@ -1,0 +1,124 @@
+#include <math.h>
+#include <stdio.h>
+
+int findMaxLocation(float arr[], int size) {
+  int maxIndex = 0;
+
+  for (int i = 1; i < size; i++) {
+    if (arr[i] > arr[maxIndex]) {
+      maxIndex = i;
+    }
+  }
+  return maxIndex;
+}
+
+int findMinLocation(float arr[], int size) {
+  int minIndex = 0;
+
+  for (int i = 1; i < size; i++) {
+    if (arr[i] < arr[minIndex]) {
+      minIndex = i;
+    }
+  }
+  return minIndex;
+}
+
+int findMax(int num1, int num2) {
+  if (num1 > num2) {
+    return num1;
+  } else {
+    return num2;
+  }
+}
+
+int findMin(int num1, int num2) {
+  if (num1 < num2) {
+    return num1;
+  } else {
+    return num2;
+  }
+}
+
+int main() {
+  int i = 0;            // iterable
+  int min_location = 0; // location of the minimum value
+  int max_location = 0; // location of the maximum value
+  int maximum_number = 0;
+  int minimum_number = 0;
+  int sampleCount = 0;       // samples for one cycle
+  int startingPosition = 0;  // starting position of the cycle
+  float averageValue = 0;    // average value of the cycle
+  float sum_of_squares = 0;  // sum of squares of the cycle
+  float mean_of_squares = 0; // mean of squares of the cycle
+  float rmsValue = 0;        // root mean square value of the cycle
+
+  float testValues[100] = {
+      256.0000, 272.0744, 288.0853, 303.9696, 319.6646, 335.1084, 350.2399,
+      364.9995, 379.3289, 393.1717, 406.4730, 419.1805, 431.2441, 442.6160,
+      453.2514, 463.1084, 472.1479, 480.3345, 487.6357, 494.0228, 499.4705,
+      503.9573, 507.4655, 509.9814, 511.4948, 512.0000, 511.4948, 509.9814,
+      507.4655, 503.9573, 499.4705, 494.0228, 487.6357, 480.3345, 472.1479,
+      463.1084, 453.2514, 442.6160, 431.2441, 419.1805, 406.4730, 393.1717,
+      379.3289, 364.9995, 350.2399, 335.1084, 319.6646, 303.9696, 288.0853,
+      272.0744, 256.0000, 239.9256, 223.9147, 208.0304, 192.3354, 176.8916,
+      161.7601, 147.0005, 132.6711, 118.8283, 105.5270, 92.8195,  80.7559,
+      69.3840,  58.7486,  48.8916,  39.8521,  31.6655,  24.3643,  17.9772,
+      12.5295,  8.0427,   4.5345,   2.0186,   0.5052,   0.0000,   0.5052,
+      2.0186,   4.5345,   8.0427,   12.5295,  17.9772,  24.3643,  31.6655,
+      39.8521,  48.8916,  58.7486,  69.3840,  80.7559,  92.8195,  105.5270,
+      118.8283, 132.6711, 147.0005, 161.7601, 176.8916, 192.3354, 208.0304,
+      223.9147, 239.9256};
+
+  // finding minima and maxima
+  min_location = findMinLocation(testValues, 100);
+  max_location = findMaxLocation(testValues, 100);
+  // printf("Minimum Location: %d\n", min_location);
+  // printf("Maximum Location: %d\n", max_location);
+
+  // printf("minimum value: %f\n", testValues[min_location]);
+  // printf("maximum value: %f\n", testValues[max_location]);
+
+  // finding the maximum and minimum values
+  maximum_number = findMax(min_location, max_location);
+  minimum_number = findMin(min_location, max_location);
+
+  // printf("maximum value: %d\n", maximum_number);
+  // printf("minimum value: %d\n", minimum_number);
+
+  sampleCount = (maximum_number - minimum_number) * 2;
+  // printf("sample count: %d\n", sampleCount);
+
+  float oneCycle[100] = {};
+
+  startingPosition = minimum_number;
+  startingPosition = 0; // for testing
+
+  // printf("starting position: %d\n", startingPosition);
+
+  for (i = 0; i < sampleCount; i++) {
+    oneCycle[i] = testValues[startingPosition + i];
+    // printf("One Cycle[i]: %f\n", oneCycle[i]);
+  }
+
+  for (i = 0; i < sampleCount; i++) {
+    averageValue += oneCycle[i];
+  }
+  averageValue = averageValue / sampleCount;
+  // printf("Average Value: %f\n", averageValue);
+
+  printf("average value: %f\n", averageValue);
+  for (i = 0; i < sampleCount; i++) {
+    oneCycle[i] -= averageValue;
+  }
+
+  for (i = 0; i < sampleCount; i++) {
+    sum_of_squares += oneCycle[i] * oneCycle[i];
+  }
+
+  mean_of_squares = sum_of_squares / sampleCount;
+
+  rmsValue = sqrt(mean_of_squares);
+
+  printf("rms value: %f\n", rmsValue);
+  return 0;
+}
